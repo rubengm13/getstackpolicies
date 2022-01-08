@@ -6,7 +6,7 @@ import settings
 
 def filter_list_of_dict(items, key, value):
     r_list = list()
-    if value is list:
+    if isinstance(value, list):
         for item in items:
             if item[key] in value:
                 r_list.append(item)
@@ -20,9 +20,16 @@ def filter_list_of_dict(items, key, value):
 class GetStackInfo(object):
     sdk: API
 
-    def __init__(self, auth_token=None):
-        self.sdk = API()
-        self.login_prisma_sdwan_sdk(auth_token)
+    def __init__(self, auth_token=None, sdk=None):
+        """
+        Initialize
+        :param auth_token: Auth Token from Prisma SD-WAN, if not provided it will prompt user to login via cli.
+        :param sdk: sdk that has already been authenticated.
+        """
+        self.sdk = sdk
+        if not sdk:
+            self.sdk = API()
+            self.login_prisma_sdwan_sdk(auth_token)
 
         # All Application Definitions
         self.app_defs_all = list()
@@ -44,13 +51,11 @@ class GetStackInfo(object):
         self.nat_prefixes_local = list()
         self.nat_pools = list()
 
-        # DC Groups
+        # Global Parameters
         self.dc_groups = list()
-
-        # Circuit Information
         self.circuit_categories = list()
-
         self.network_context = list()
+        self.global_prefixes = list()
 
         self.update_data()
 
@@ -85,6 +90,7 @@ class GetStackInfo(object):
         self.app_defs_all = self.sdk.get.appdefs().cgx_content.get("items", None)
         self.dc_groups = self.sdk.get.servicelabels().cgx_content.get("items", None)
         self.network_context = self.sdk.get.networkcontexts().cgx_content.get("items", None)
+        self.global_prefixes = self.sdk.get.globalprefixfilters().cgx_content.get("items", None)
 
     def update_data(self):
         # Do all the Get Requests
@@ -97,6 +103,8 @@ class GetStackInfo(object):
         self.nat_stacks_combined()
         self.qos_sets_combined()
         self.qos_stacks_combined()
+
+        self.update_app_data()
 
     # Helper Functions
     def _update_path_circuit(self, paths):
@@ -243,10 +251,9 @@ class GetStackInfo(object):
 
     def find_app_name(self, app_def_ids):
         app_def_name = list()
-        if app_def_ids:
-            for app_id in app_def_ids:
-                app_name = filter_list_of_dict(self.app_defs_all, 'id', app_id)[0]['display_name']
-                app_def_name.append(app_name)
+        for app_id in app_def_ids or []:
+            app_name = filter_list_of_dict(self.app_defs_all, 'id', app_id)[0]['display_name']
+            app_def_name.append(app_name)
         return app_def_name
 
     def _update_nat_rule(self, nat_rules, nat_id):
@@ -271,8 +278,10 @@ class GetStackInfo(object):
             # Add new key to dict for policy set name
             stack["policyset_dicts"] = list()
             if stack["policyset_ids"]:
-                for policy_set_id in stack["policyset_ids"]:
+                for policy_set_id in stack["policyset_ids"] or []:
                     stack["policyset_dicts"] += filter_list_of_dict(policy_sets, "id", policy_set_id)
+            if "defaultrule_policyset_id" in stack and stack['defaultrule_policyset_id']:
+                stack['defaultrule_policyset_dicts'] = filter_list_of_dict(policy_sets, "id", stack['defaultrule_policyset_id'])
         # return policy_stack
 
     # filtering out functions
@@ -287,6 +296,22 @@ class GetStackInfo(object):
             return filter_list_of_dict(self.path_policy_sets, "name", name)
         if id:
             return filter_list_of_dict(self.path_policy_sets, "id", id)
+
+    def update_app_data(self):
+        for app in self.app_defs_all:
+            for tcp_rule in app['tcp_rules'] or []:
+                results = filter_list_of_dict(self.global_prefixes, 'id', tcp_rule['server_filters'])
+                tcp_rule['server_filters_dicts'] = results
+                results = filter_list_of_dict(self.global_prefixes, 'id', tcp_rule['client_filters'])
+                tcp_rule['client_filters_dicts'] = results
+            for udp_rules in app['udp_rules'] or []:
+                results = filter_list_of_dict(self.global_prefixes, 'id', udp_rules['udp_filters'])
+                udp_rules['udp_filters_dicts'] = results
+            for ip_rule in app['ip_rules'] or []:
+                results = filter_list_of_dict(self.global_prefixes, 'id', ip_rule['dest_filters'])
+                ip_rule['dest_filters_dicts'] = results
+                results = filter_list_of_dict(self.global_prefixes, 'id', ip_rule['src_filters'])
+                ip_rule['src_filters_dicts'] = results
 
 
 def main():
@@ -307,6 +332,8 @@ def main():
         json.dump(sdk.qos_policy_stacks, f, indent=4)
     with open('cuistom_apps.json', 'w+') as f:
         json.dump(sdk.app_defs_custom, f, indent=4)
+    with open('global_prefixes.json', 'w+') as f:
+        json.dump(sdk.global_prefixes, f, indent=4)
     # sdk.path_sets_combined
 
 
