@@ -285,17 +285,17 @@ class GetStackInfo(object):
         # return policy_stack
 
     # filtering out functions
-    def get_policy_set(self, id=None, name=None):
+    def get_policy_set(self, p_id=None, name=None):
         """
         Search Path Policies by Name or ID.
-        :param id:
+        :param p_id:
         :param name:
         :return:
         """
         if name:
             return filter_list_of_dict(self.path_policy_sets, "name", name)
-        if id:
-            return filter_list_of_dict(self.path_policy_sets, "id", id)
+        if p_id:
+            return filter_list_of_dict(self.path_policy_sets, "id", p_id)
 
     def update_app_data(self):
         for app in self.app_defs_all:
