@@ -1,5 +1,5 @@
 import json
-
+from unipath import Path
 from cloudgenix import API, jd
 import settings
 
@@ -313,28 +313,29 @@ class GetStackInfo(object):
                 results = filter_list_of_dict(self.global_prefixes, 'id', ip_rule['src_filters'])
                 ip_rule['src_filters_dicts'] = results
 
+    def output_all_data_json(self, out_path=None):
+        if out_path is None:
+            out_path = Path('')
+        out_path = Path(out_path)
+        out_path.mkdir(True)
+        output_properties = [
+            'circuit_categories',
+            'path_policy_sets',
+            'path_policy_stacks',
+            'nat_policy_sets',
+            'nat_policy_stacks',
+            'qos_policy_sets',
+            'qos_policy_stacks',
+            'app_defs_custom',
+            'global_prefixes'
+        ]
+        for prop in output_properties:
+            out_path.child(prop+'.json').write_file(json.dumps(getattr(self, prop)))
+
 
 def main():
     sdk = GetStackInfo(settings.prisma_sdwan_auth_token)
-    with open('circuit_categories.json', 'w+') as f:
-        json.dump(sdk.circuit_categories, f, indent=4)
-    with open('path_sets.json', 'w+') as f:
-        json.dump(sdk.path_policy_sets, f, indent=4)
-    with open('path_stacks.json', 'w+') as f:
-        json.dump(sdk.path_policy_stacks, f, indent=4)
-    with open('nat_sets.json', 'w+') as f:
-        json.dump(sdk.nat_policy_sets, f, indent=4)
-    with open('nat_stacks.json', 'w+') as f:
-        json.dump(sdk.nat_policy_stacks, f, indent=4)
-    with open('qos_sets.json', 'w+') as f:
-        json.dump(sdk.qos_policy_sets, f, indent=4)
-    with open('qos_stacks.json', 'w+') as f:
-        json.dump(sdk.qos_policy_stacks, f, indent=4)
-    with open('cuistom_apps.json', 'w+') as f:
-        json.dump(sdk.app_defs_custom, f, indent=4)
-    with open('global_prefixes.json', 'w+') as f:
-        json.dump(sdk.global_prefixes, f, indent=4)
-    # sdk.path_sets_combined
+    sdk.output_all_data_json('debug_out')
 
 
 
