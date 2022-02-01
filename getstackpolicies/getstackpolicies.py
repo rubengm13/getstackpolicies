@@ -1,7 +1,6 @@
 import json
 from unipath import Path
 from cloudgenix import API, jd
-import settings
 
 
 def filter_list_of_dict(items, key, value):
@@ -61,7 +60,7 @@ class GetStackInfo(object):
 
     def login_prisma_sdwan_sdk(self, auth_token):
         if auth_token:
-            self.sdk.interactive.use_token(settings.prisma_sdwan_auth_token)
+            self.sdk.interactive.use_token(auth_token)
         else:
             self.sdk.interactive.login()
 
@@ -334,9 +333,9 @@ class GetStackInfo(object):
 
 
 def main():
+    import settings
     sdk = GetStackInfo(settings.prisma_sdwan_auth_token)
     sdk.output_all_data_json('debug_out')
-
 
 
 if __name__ == "__main__":
